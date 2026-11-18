@@ -1,0 +1,8 @@
+.DS_Store
+private/
+.password
+.claude/settings.local.json
+__pycache__/
+.playwright-mcp/
+.azure-vision.env
+.venv/

@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="班表查詢">
+<meta name="theme-color" content="#2f6f62">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<title>班表查詢</title>
+<style>
+  :root{
+    --bg:#f4f6f5; --card:#fff; --ink:#1d2624; --muted:#66736f; --line:#dfe5e3;
+    --brand:#2f6f62; --brand-ink:#fff;
+    --am:#3d7fd1; --pm:#d9822b; --night:#6b5bb5;
+    --yellow:#fff3b0; --yellow-ink:#7a5d00; --warn:#c0392b;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#141a19; --card:#1d2523; --ink:#e7eeec; --muted:#9aa7a3; --line:#2c3633;
+      --yellow:#4a4114; --yellow-ink:#ffe27a; }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;
+    background:var(--bg);color:var(--ink);-webkit-text-size-adjust:100%}
+  header{background:var(--brand);color:var(--brand-ink);padding:calc(14px + env(safe-area-inset-top)) 18px 14px}
+  header h1{margin:0;font-size:20px;font-weight:700;letter-spacing:.5px}
+  main{max-width:520px;margin:0 auto;padding:16px}
+  .controls{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;gap:12px}
+  label{display:grid;gap:6px;font-size:13px;color:var(--muted)}
+  select,input{font:inherit;font-size:17px;color:var(--ink);background:var(--bg);border:1px solid var(--line);
+    border-radius:10px;padding:10px 12px;width:100%}
+  .summary{display:flex;justify-content:space-between;align-items:baseline;margin:18px 4px 8px;color:var(--muted);font-size:14px}
+  .summary b{color:var(--ink);font-size:16px}
+  .list{display:grid;gap:10px}
+  .item{background:var(--card);border:1px solid var(--line);border-left:6px solid var(--am);border-radius:12px;padding:12px 14px}
+  .item.pm{border-left-color:var(--pm)} .item.night{border-left-color:var(--night)}
+  .item.yellow{background:var(--yellow)}
+  .row1{display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+  .shift{font-weight:700}
+  .time{font-variant-numeric:tabular-nums;font-weight:600}
+  .hrs{margin-left:auto;color:var(--muted);font-size:14px}
+  .task{font-size:17px;margin-top:4px}
+  .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+  .tag{font-size:12px;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}
+  .tag.y{border-color:#d4b200;color:var(--yellow-ink)}
+  .tag.w{border-color:var(--warn);color:var(--warn)}
+  .raw{font-size:12px;color:var(--muted);margin-top:6px}
+  .empty{text-align:center;color:var(--muted);padding:28px 10px}
+  .btn{display:block;width:100%;margin-top:16px;padding:14px;border:0;border-radius:12px;background:var(--brand);
+    color:var(--brand-ink);font:inherit;font-size:17px;font-weight:700}
+  .btn:disabled{opacity:.4}
+  .foot{color:var(--muted);font-size:12px;text-align:center;margin:18px 0 30px;line-height:1.6}
+  .gcal{display:inline-block;margin-top:8px;padding:6px 12px;border:1px solid var(--brand);border-radius:999px;
+    color:var(--brand);font-size:14px;font-weight:600;text-decoration:none}
+  @media (prefers-color-scheme: dark){ .gcal{color:#7fc4b4;border-color:#7fc4b4} }
+  [hidden]{display:none !important}
+  .lock{max-width:360px;margin:40px auto 0;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:14px}
+  .lock h2{margin:0;font-size:18px}
+  .lock input[type=password]{font-size:22px;letter-spacing:6px;text-align:center}
+  .remember{display:flex;align-items:center;gap:8px;font-size:14px;color:var(--muted)}
+  .remember input{width:auto}
+  .err{color:var(--warn);font-size:14px;min-height:1.2em;margin:0}
+  .namebox{position:relative}
+  .namebox input{padding-right:52px}
+  .namebtn{position:absolute;top:1px;right:1px;bottom:1px;width:48px;border:0;border-left:1px solid var(--line);
+    border-radius:0 9px 9px 0;background:transparent;color:var(--muted);font-size:18px}
+  .namebtn:disabled{opacity:.3}
+  .namebox input[readonly]{cursor:pointer}
+  .sheet-bg{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:10}
+  .sheet{position:fixed;left:0;right:0;bottom:0;z-index:11;max-height:70vh;display:flex;flex-direction:column;
+    background:var(--card);border-radius:16px 16px 0 0;box-shadow:0 -4px 20px rgba(0,0,0,.2);
+    padding-bottom:env(safe-area-inset-bottom);animation:up .2s ease-out}
+  @keyframes up{from{transform:translateY(100%)}to{transform:none}}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--line)}
+  .sheet-head b{font-size:17px}
+  .sheet-close{border:0;background:none;color:var(--muted);font-size:20px;padding:4px 8px}
+  .sheet-list{overflow-y:auto;padding:12px 14px 16px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;
+    max-width:520px;width:100%;margin:0 auto;box-sizing:border-box}
+  .sheet-list button{font:inherit;font-size:16px;padding:12px 4px;border:1px solid var(--line);border-radius:10px;
+    background:var(--bg);color:var(--ink)}
+  .sheet-list button.on{background:var(--brand);color:var(--brand-ink);border-color:var(--brand)}
+  /* 彈窗捲軸：細、主題綠，不搶畫面 */
+  .sheet-list{--thumb:rgba(47,111,98,.45);--thumb-hover:rgba(47,111,98,.75);
+    scrollbar-width:thin;scrollbar-color:var(--thumb) transparent}
+  @media (prefers-color-scheme: dark){ .sheet-list{--thumb:rgba(127,196,180,.4);--thumb-hover:rgba(127,196,180,.7)} }
+  .sheet-list::-webkit-scrollbar{width:6px}
+  .sheet-list::-webkit-scrollbar-track{background:transparent;margin:8px 0}
+  .sheet-list::-webkit-scrollbar-thumb{background:var(--thumb);border-radius:999px}
+  .sheet-list::-webkit-scrollbar-thumb:hover{background:var(--thumb-hover)}
+  .linkbtn{background:none;border:0;padding:0;color:var(--muted);font:inherit;font-size:12px;text-decoration:underline}
+</style>
+</head>
+<body>
+<header><h1>📅 班表查詢</h1></header>
+<form class="lock" id="lock" hidden>
+  <h2>🔒 請輸入密碼</h2>
+  <input id="pw" type="password" inputmode="numeric" autocomplete="current-password" placeholder="密碼">
+  <label class="remember"><input id="remember" type="checkbox" checked>記住這台裝置</label>
+  <p class="err" id="pwErr"></p>
+  <button class="btn" id="unlock" type="submit" style="margin-top:0">開啟</button>
+</form>
+<main id="app" hidden>
+  <div class="controls">
+    <label>日期
+      <div class="namebox">
+        <input id="dateText" readonly placeholder="選擇日期">
+        <button class="namebtn" id="dateBtn" type="button" aria-label="選擇日期" disabled>▾</button>
+      </div>
+    </label>
+    <label>姓名
+      <div class="namebox">
+        <input id="name" placeholder="輸入或選擇姓名" autocomplete="off">
+        <button class="namebtn" id="nameBtn" type="button" aria-label="選擇姓名" disabled>▾</button>
+      </div>
+    </label>
+  </div>
+  <div class="summary" id="summary"></div>
+  <div class="list" id="list"></div>
+  <button class="btn" id="ics" disabled>＋ 加入 iPhone 行事曆</button>
+  <p class="foot">🟡 = 原表黃底　⚠ = 時間重疊<br><span id="tip">匯入時建議選擇專用的「班表」日曆，方便管理</span><span id="install" hidden></span><button class="linkbtn" id="logout" type="button">登出（清除這台裝置記住的密碼）</button></p>
+</main>
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle" hidden>
+  <div class="sheet-head"><b id="sheetTitle">選擇</b><button class="sheet-close" id="sheetClose" type="button" aria-label="關閉">✕</button></div>
+  <div class="sheet-list" id="sheetList"></div>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const store = {
+  get(k){ try{ return localStorage.getItem(k) }catch(e){ return null } },
+  set(k,v){ try{ localStorage.setItem(k,v) }catch(e){} },
+  del(k){ try{ localStorage.removeItem(k) }catch(e){} }
+};
+const WEEK = "日一二三四五六";
+const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform==="MacIntel" && navigator.maxTouchPoints>1);
+const isAndroid = /Android/i.test(navigator.userAgent);
+let day = null;
+let names = [];
+let dates = [];
+let curDate = "";
+let onPick = null;
+
+const shiftClass = s => s.startsWith("午") ? "pm" : s.startsWith("夜") ? "night" : "am";
+const mins = t => { const [h,m] = t.split(":").map(Number); return h*60+m; };
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function getJSON(url){
+  const r = await fetch(url, {cache:"no-cache"});
+  if(!r.ok) throw new Error(url + " " + r.status);
+  return r.json();
+}
+
+function dateLabel(d){
+  return `${d.slice(5).replace("-","/")}（${WEEK[new Date(d+"T12:00:00Z").getUTCDay()]}）`;
+}
+
+/* ---------- 解密（PBKDF2-SHA256 + AES-GCM，對應 tools/encrypt.mjs） ---------- */
+let idx = null, key = null;
+const unb64 = s => Uint8Array.from(atob(s), c => c.charCodeAt(0));
+async function deriveKey(pw){
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveKey"]);
+  return crypto.subtle.deriveKey({name:"PBKDF2", hash:"SHA-256", salt:unb64(idx.kdf.salt), iterations:idx.kdf.iter},
+    base, {name:"AES-GCM", length:256}, false, ["decrypt"]);
+}
+async function decrypt(k, o){
+  const buf = await crypto.subtle.decrypt({name:"AES-GCM", iv:unb64(o.iv)}, k, unb64(o.ct));
+  return new TextDecoder().decode(buf);
+}
+async function tryPassword(pw){        // 密碼正確回傳 true
+  try{ const k = await deriveKey(pw); await decrypt(k, idx.check); key = k; return true; }
+  catch(e){ return false; }
+}
+
+async function boot(){
+  try{ idx = await getJSON("data/index.json"); }
+  catch(e){ $("#app").hidden = false; $("#list").innerHTML = `<div class="empty">讀不到班表資料</div>`; return; }
+  if(!window.crypto || !crypto.subtle){
+    $("#lock").hidden = false; $("#pwErr").textContent = "這個瀏覽器不支援解密，請改用 Safari 或 Chrome 開啟"; return;
+  }
+  const saved = store.get("pw");
+  if(saved && await tryPassword(saved)) return init();
+  if(saved) store.del("pw");
+  $("#lock").hidden = false;
+  $("#pw").focus();
+  $("#lock").addEventListener("submit", async ev => {
+    ev.preventDefault();
+    const pw = $("#pw").value.trim();
+    if(!pw) return;
+    $("#unlock").disabled = true; $("#pwErr").textContent = "";
+    const ok = await tryPassword(pw);
+    $("#unlock").disabled = false;
+    if(!ok){ $("#pwErr").textContent = "密碼錯誤"; $("#pw").select(); return; }
+    if($("#remember").checked) store.set("pw", pw);
+    $("#lock").hidden = true; $("#pw").value = "";
+    init();
+  });
+}
+
+function init(){
+  $("#app").hidden = false;
+  $("#logout").addEventListener("click", () => { store.del("pw"); location.reload(); });
+  dates = (idx.dates || []).slice().sort().reverse();
+  const savedDate = store.get("date");
+  setDate(savedDate && dates.includes(savedDate) ? savedDate : (dates[0] || ""));
+  $("#dateBtn").disabled = dates.length === 0;
+  store.del("name");                     // 姓名不記憶，每次都從空白開始
+  $("#name").addEventListener("input", render);
+  const pickDate = ev => { ev.preventDefault();
+    openSheet("選擇日期", dates.map(d => ({value:d, label:dateLabel(d)})), curDate,
+      d => { if(d !== curDate){ setDate(d); store.set("date", d); loadDay(); } }); };
+  $("#dateBtn").addEventListener("click", pickDate);
+  $("#dateText").addEventListener("click", pickDate);
+  $("#nameBtn").addEventListener("click", ev => { ev.preventDefault();
+    openSheet("選擇姓名", names.map(n => ({value:n, label:n})), $("#name").value.trim(),
+      n => { $("#name").value = n; render(); }); });
+  $("#sheetBg").addEventListener("click", closeSheet);
+  $("#sheetClose").addEventListener("click", closeSheet);
+  $("#sheetList").addEventListener("click", ev => {
+    const b = ev.target.closest("button[data-v]"); if(!b) return;
+    const f = onPick; closeSheet(); if(f) f(b.dataset.v);
+  });
+  document.addEventListener("keydown", ev => { if(ev.key === "Escape") closeSheet(); });
+  $("#ics").addEventListener("click", exportICS);
+  if(!isIOS){
+    $("#ics").textContent = "下載 .ics 行事曆檔";
+    $("#tip").textContent = isAndroid
+      ? "Google 日曆請逐筆按「＋ Google 日曆」；三星等日曆可用 .ics 匯入"
+      : "可逐筆加入 Google 日曆，或下載 .ics 匯入其他行事曆";
+  }
+  loadDay();
+}
+
+async function loadDay(){
+  const d = curDate;
+  if(!d) return;
+  try{ day = JSON.parse(await decrypt(key, await getJSON(`data/${d}.json`))); }
+  catch(e){ day = null; $("#list").innerHTML = `<div class="empty">這天的資料讀取失敗</div>`; return; }
+  names = [...new Set(day.entries.map(e => e.name))].sort((a,b)=>a.localeCompare(b,"zh-Hant"));
+  $("#nameBtn").disabled = names.length === 0;
+  render();
+}
+
+function setDate(d){
+  curDate = d;
+  $("#dateText").value = d ? dateLabel(d) : "";
+}
+
+/* ---------- 底部彈窗（日期、姓名共用）：按右側箭頭展開 ---------- */
+function openSheet(title, items, current, pick){
+  if(!items.length) return;
+  $("#sheetTitle").textContent = title;
+  $("#sheetList").innerHTML = items.map(it =>
+    `<button type="button" data-v="${esc(it.value)}" class="${it.value===current?"on":""}">${esc(it.label)}</button>`).join("");
+  onPick = pick;
+  $("#name").blur();
+  $("#sheetBg").hidden = false; $("#sheet").hidden = false;
+  document.body.style.overflow = "hidden";
+  $("#sheetList").scrollTop = 0;
+}
+function closeSheet(){
+  onPick = null;
+  $("#sheetBg").hidden = true; $("#sheet").hidden = true;
+  document.body.style.overflow = "";
+}
+
+function myEntries(){
+  const n = $("#name").value.trim();
+  if(!day || !n) return [];
+  return day.entries.filter(e => e.name === n).sort((a,b) => mins(a.start) - mins(b.start));
+}
+
+function overlaps(list){
+  const set = new Set();
+  for(let i=0;i<list.length;i++) for(let j=i+1;j<list.length;j++){
+    if(mins(list[i].start) < mins(list[j].end) && mins(list[j].start) < mins(list[i].end)){ set.add(i); set.add(j); }
+  }
+  return set;
+}
+
+function render(){
+  const n = $("#name").value.trim();
+  const list = myEntries();
+  const ov = overlaps(list);
+  $("#ics").disabled = list.length === 0;
+  if(!n){ $("#summary").innerHTML = ""; $("#list").innerHTML = `<div class="empty">請輸入或選擇姓名</div>`; return; }
+  if(!list.length){ $("#summary").innerHTML = ""; $("#list").innerHTML = `<div class="empty">這天沒有找到「${esc(n)}」的班</div>`; return; }
+  const total = list.reduce((s,e) => s + (Number(e.hours)||0), 0);
+  $("#summary").innerHTML = `<b>${esc(n)}</b><span>共 ${list.length} 筆・${total}h</span>`;
+  $("#list").innerHTML = list.map((e,i) => `
+    <div class="item ${shiftClass(e.shift)} ${e.color==="yellow"?"yellow":""}">
+      <div class="row1">
+        <span class="shift">${e.color==="yellow"?"🟡 ":""}${esc(e.shift)}</span>
+        <span class="time">${e.start}–${e.end}</span>
+        <span class="hrs">${e.hours}h</span>
+      </div>
+      <div class="task">${esc(e.task)} ${esc(e.extra||"")}</div>
+      ${(e.color==="yellow" || ov.has(i) || (e.color && e.color!=="yellow")) ? `<div class="tags">
+        ${e.color==="yellow"?`<span class="tag y">黃底</span>`:""}
+        ${e.color && e.color!=="yellow"?`<span class="tag">${esc(e.color)}底</span>`:""}
+        ${ov.has(i)?`<span class="tag w">⚠ 時間重疊</span>`:""}
+      </div>`:""}
+      ${e.note?`<div class="raw">備註：${esc(e.note)}</div>`:""}
+      <div class="raw">原文：${esc(e.raw||"")}</div>
+      ${isIOS ? "" : `<a class="gcal" href="${esc(gcalURL(e,i,ov))}" target="_blank" rel="noopener">＋ Google 日曆</a>`}
+    </div>`).join("");
+}
+
+/* ---------- ICS ---------- */
+function icsEsc(s){ return String(s).replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n"); }
+function fold(line){
+  const enc = new TextEncoder(); const out = []; let cur = ""; let bytes = 0;
+  for(const ch of line){
+    const b = enc.encode(ch).length;
+    if(bytes + b > (out.length ? 74 : 75)){ out.push(cur); cur = ""; bytes = 0; }
+    cur += ch; bytes += b;
+  }
+  out.push(cur);
+  return out.join("\r\n ");
+}
+function utc(date, time){            // 台北時間 → UTC 格式
+  const d = new Date(`${date}T${time}:00+08:00`);
+  return d.toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+}
+function eventInfo(e, i, ov){       // 行事曆標題與備註（.ics 與 Google 日曆共用）
+  const title = `${e.color==="yellow"?"🟡 ":""}${e.shift}｜${e.task}${e.extra?" "+e.extra:""}`;
+  const notes = [`時數：${e.hours}h`, e.color==="yellow"?"黃底":"", e.color&&e.color!=="yellow"?`${e.color}底`:"",
+                 ov.has(i)?"⚠ 與其他班時間重疊":"", e.note?`備註：${e.note}`:"", `原文：${e.raw||""}`].filter(Boolean).join("\n");
+  return {title, notes};
+}
+function gcalURL(e, i, ov){
+  const {title, notes} = eventInfo(e, i, ov);
+  const p = new URLSearchParams({action:"TEMPLATE", text:title,
+    dates:`${utc(day.date,e.start)}/${utc(day.date,e.end)}`, details:notes});
+  return "https://calendar.google.com/calendar/render?" + p.toString();
+}
+function exportICS(){
+  const list = myEntries(); if(!list.length) return;
+  const ov = overlaps(list);
+  const n = $("#name").value.trim();
+  const stamp = new Date().toISOString().replace(/[-:]/g,"").replace(/\.\d{3}/,"");
+  const L = ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//schedule//zh-TW","CALSCALE:GREGORIAN","METHOD:PUBLISH"];
+  list.forEach((e,i) => {
+    const {title, notes} = eventInfo(e, i, ov);
+    L.push("BEGIN:VEVENT",
+      `UID:${day.date}-${e.start.replace(":","")}-${i}-${encodeURIComponent(n)}@schedule`,
+      `DTSTAMP:${stamp}`,
+      `DTSTART:${utc(day.date,e.start)}`,
+      `DTEND:${utc(day.date,e.end)}`,
+      fold(`SUMMARY:${icsEsc(title)}`),
+      fold(`DESCRIPTION:${icsEsc(notes)}`),
+      "BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:上班提醒","TRIGGER:-PT30M","END:VALARM",
+      "END:VEVENT");
+  });
+  L.push("END:VCALENDAR");
+  const ics = L.join("\r\n") + "\r\n";
+  if(isIOS){
+    location.href = "data:text/calendar;charset=utf-8," + encodeURIComponent(ics);
+  }else{
+    const url = URL.createObjectURL(new Blob([ics], {type:"text/calendar;charset=utf-8"}));
+    const a = document.createElement("a"); a.href = url; a.download = `班表_${n}_${day.date}.ics`;
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(url), 2000);
+  }
+}
+
+// 加入主畫面（PWA）：註冊 service worker；還沒安裝時在頁尾提示怎麼裝
+if ("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(() => {});
+if (!(matchMedia("(display-mode: standalone)").matches || navigator.standalone)) {
+  const el = document.getElementById("install");
+  el.textContent = isIOS
+    ? "📱 裝成 App：Safari 按「分享」→「加入主畫面」（第一次開要重新輸入密碼）"
+    : "📱 裝成 App：瀏覽器選單 →「安裝應用程式」或「加到主畫面」";
+  el.hidden = false;
+  el.style.display = "block";
+}
+
+boot();
+</script>
+</body>
+</html>
