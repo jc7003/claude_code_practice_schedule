@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Notification": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "m=$(node -e 'let s=\"\";process.stdin.on(\"data\",d=>s+=d).on(\"end\",()=>{let m=\"\";try{m=JSON.parse(s).message||\"\"}catch{}process.stdout.write(m||\"需要你確認\")})'); afplay /System/Library/Sounds/Glass.aiff & osascript -e 'on run argv' -e 'display notification (item 1 of argv) with title \"Claude Code・班表\"' -e 'end run' \"$m\" >/dev/null 2>&1 || true",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
+}
