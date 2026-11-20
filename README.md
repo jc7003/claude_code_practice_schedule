@@ -26,12 +26,38 @@ tools/encrypt.mjs        把 private/ 加密成 data/
 manifest.webmanifest、sw.js、icons/  加入主畫面（PWA）用
 ```
 
+## 開發方式：用 Claude Code 把紙本班表變成網站資料
+每天的班表是一張手寫表格的照片。辨識、核對、加密到上線，都由 Claude Code 的 slash command、sub agent 和 skill 串起來，只有「核對」這一步由人來做。
+
+```mermaid
+flowchart LR
+    A["班表照片"] --> B["/deploy_schedule"]
+    B --> C1["schedule-transcriber<br>（一張圖一個，平行）"]
+    C1 --> D["Azure OCR 取字<br>＋看圖判斷結構"]
+    D --> E["private/YYYY-MM-DD.json<br>＋核對報告"]
+    E --> F{"人工核對"}
+    F -- 更正 --> E
+    F -- 確認 --> G["schedule-publisher"]
+    G --> H["encrypt.mjs<br>AES-256-GCM"]
+    H --> I["檢查 data/ 沒有姓名"]
+    I --> J["commit／push"]
+    J --> K["確認 GitHub Pages 上線"]
+```
+
+設計重點：
+- **文字以 OCR 為準，結構看圖**：中文字交給 Azure AI Vision，比直接讀圖的錯字少。欄位、底色和劃掉的格子則由模型看圖判斷。
+- **一張圖一個 sub agent，平行處理**：主對話只合併報告、處理更正，不會被圖片和 OCR 原始輸出塞滿 context。
+- **沒有人工確認就不能發布**：低信心的字、對不上的姓名和規則沒涵蓋的格子，都會列成問題請人決定。
+- **發布前先擋明文外洩**：publisher 只有 Read 和 Bash 權限。它推送前會檢查 `data/` 裡沒有任何姓名，有一項不過就不 commit。
+- **規則只寫在一處**：轉錄慣例都寫在 `CLAUDE.md`；遇到新的符號，就補進規則裡。
+
+相關檔案：`.claude/commands/deploy_schedule.md`（流程）、`.claude/agents/`（轉錄與發布的 agent）、`.claude/skills/ocr/`（OCR）。通知 hook（`.claude/settings.json`）用 `afplay` 和 `osascript`，只能在 macOS 上執行。
+
 ## 每日更新
 1. 在 Claude Code 輸入 `/deploy_schedule <圖檔路徑>`（或傳班表圖，說「更新班表」）
-2. 核對辨識結果
-3. 把明文存成 `private/YYYY-MM-DD.json`
-4. `node tools/encrypt.mjs`：加密最近 30 天的 `private/` 檔案到 `data/`，並更新 `data/index.json` 的日期清單。超過 30 天的班表會從網站移除，`private/` 裡的明文則保留在本機
-5. `git add data && git commit -m "更新班表 YYYY-MM-DD" && git push`，約 1 分鐘後 GitHub Pages 更新
+2. 核對辨識結果。明文存在 `private/YYYY-MM-DD.json`
+3. 確認後，`schedule-publisher` agent 會執行 `node tools/encrypt.mjs`，把最近 30 天的 `private/` 檔案加密到 `data/`，並更新 `data/index.json` 的日期清單。超過 30 天的班表會從網站移除，`private/` 裡的明文則保留在本機
+4. agent 以 `chore(data): 更新班表 YYYY-MM-DD` commit 並推送，約 1 分鐘後 GitHub Pages 更新
 
 ## OCR 設定（上傳者的電腦要做一次）
 轉錄時字以 Azure AI Vision 的 OCR 為準，錯字比直接讀圖少。
