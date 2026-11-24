@@ -54,7 +54,7 @@ flowchart LR
 相關檔案：`.claude/commands/deploy_schedule.md`（流程）、`.claude/agents/`（轉錄與發布的 agent）、`.claude/skills/ocr/`（OCR）。通知 hook（`.claude/settings.json`）用 `afplay` 和 `osascript`，只能在 macOS 上執行。
 
 ## 每日更新
-1. 在 Claude Code 輸入 `/deploy_schedule <圖檔路徑>`（或傳班表圖，說「更新班表」）
+1. 把班表圖放進 `inbox/`，在 Claude Code 輸入 `/deploy_schedule`（也可以給圖檔或資料夾路徑：`/deploy_schedule <路徑…>`，或直接傳班表圖說「更新班表」）
 2. 核對辨識結果。明文存在 `private/YYYY-MM-DD.json`
 3. 確認後，`schedule-publisher` agent 會執行 `node tools/encrypt.mjs`，把最近 30 天的 `private/` 檔案加密到 `data/`，並更新 `data/index.json` 的日期清單。超過 30 天的班表會從網站移除，`private/` 裡的明文則保留在本機
 4. agent 以 `chore(data): 更新班表 YYYY-MM-DD` commit 並推送，約 1 分鐘後 GitHub Pages 更新
