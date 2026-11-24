@@ -14,7 +14,7 @@ tools: Read, Bash
 ## 步驟
 1. **加密**：`node tools/encrypt.mjs`。指令失敗（例如密碼和既有的 check 對不上）就停止並回報錯誤訊息。
 2. **檢查沒有明文外洩**：
-   - 從這次每個日期的 `private/YYYY-MM-DD.json` 取出所有 `name`，到 `data/` 的全部檔案裡逐一 grep，每個名字的次數都必須是 0。
+   - 從這次每個日期的 `private/YYYY-MM-DD.json` 取出所有 `name`，到 `data/` 的全部檔案裡逐一 grep，每個名字的次數都必須是 0。單位名稱（「OR」「觀察房」）和含「+」的多人格不算人名，不用檢查：「OR」這種短英文字會在 base64 密文裡隨機出現。另外確認 `data/` 每個檔案的欄位只有 `v,iv,ct`（`index.json` 是 `dates,kdf,check`）。
    - `data/index.json` 的 `dates` 要包含這次的所有日期。網站只保留最近 30 天：超過 30 天的日期不會出現在 `dates`，`data/` 裡的舊檔也會被刪除，這是正常的。在回報中列出被移除的日期。如果這次要上線的日期本身就超過 30 天，回報「已超過保留期限」並停止。
    - `git status --short` 裡只能有 `data/` 的變更。`private/`、`.password`、`.azure-vision.env`、`.venv` 都不能出現。如果有其他未提交的檔案，不要動它們，也不要加進這次的 commit。
 3. **commit**：`git add data`，然後 commit，訊息是 `chore(data): 更新班表 YYYY-MM-DD、…`（日期用頓號分隔），結尾空一行加上：
